@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CareerPath — Learn with direction</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        navy: { 950:'#060A12', 900:'#0D1321', 800:'#131C2E', 700:'#1B2740', 600:'#253553' },
+                        mint: { DEFAULT:'#00D68F', dark:'#00B377', light:'#4DFFBC', glow:'rgba(0,214,143,0.12)' },
+                        flame: { DEFAULT:'#FF7A3D', dark:'#E5621F', light:'#FF9E72' },
+                        sky: { DEFAULT:'#4F8CFF', dark:'#3A6FD9', light:'#80ACFF' },
+                        violet: { DEFAULT:'#A78BFA', dark:'#8B6FE0' },
+                    },
+                    fontFamily: { display:['Space Grotesk','sans-serif'], body:['DM Sans','sans-serif'] },
+                }
+            }
+        }
+    </script>
+
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html { scroll-behavior: smooth; }
+        body { font-family:'DM Sans',sans-serif; background:#060A12; color:#E2E8F0; overflow-x:hidden; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width:6px; }
+        ::-webkit-scrollbar-track { background:#0D1321; }
+        ::-webkit-scrollbar-thumb { background:#253553; border-radius:3px; }
+        ::-webkit-scrollbar-thumb:hover { background:#00D68F; }
+
+        /* Canvas */
+        #hero-canvas { position:absolute; inset:0; z-index:0; }
+
+        /* Animations */
+        @keyframes fadeUp { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+        @keyframes pulse-ring { 0%{transform:scale(1);opacity:.6} 100%{transform:scale(2.2);opacity:0} }
+        @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+        @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+        @keyframes gradient-shift { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+        @keyframes draw-line { from{stroke-dashoffset:800} to{stroke-dashoffset:0} }
+        @keyframes glow-pulse { 0%,100%{box-shadow:0 0 20px rgba(0,214,143,0.2)} 50%{box-shadow:0 0 40px rgba(0,214,143,0.4)} }
+
+        .fade-up { opacity:0; transform:translateY(30px); transition:opacity .7s ease, transform .7s ease; }
+        .fade-up.visible { opacity:1; transform:translateY(0); }
+        .fade-in { opacity:0; transition:opacity .7s ease; }
+        .fade-in.visible { opacity:1; }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #00D68F, #4F8CFF, #A78BFA);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradient-shift 4s ease infinite;
+        }
+
+        .card-glow:hover { box-shadow: 0 0 30px rgba(0,214,143,0.08), 0 8px 32px rgba(0,0,0,0.4); }
+        .card-glow { transition: box-shadow .4s ease, transform .4s ease, border-color .4s ease; }
+        .card-glow:hover { transform: translateY(-4px); border-color: rgba(0,214,143,0.3); }
+
+        /* Timeline */
+        .timeline-node { position:relative; }
+        .timeline-node::before {
+            content:''; position:absolute; width:16px; height:16px; border-radius:50%;
+            background:#00D68F; top:50%; left:-8px; transform:translateY(-50%); z-index:2;
+        }
+        .timeline-node::after {
+            content:''; position:absolute; width:16px; height:16px; border-radius:50%;
+            background:#00D68F; top:50%; left:-8px; transform:translateY(-50%);
+            animation: pulse-ring 2s ease-out infinite; z-index:1;
+        }
+
+        /* Grid pattern */
+        .grid-bg {
+            background-image:
+                linear-gradient(rgba(0,214,143,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,214,143,0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+        }
+
+        /* Noise */
+        .noise::before {
+            content:''; position:absolute; inset:0; opacity:0.03; z-index:0; pointer-events:none;
+            background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        }
+
+        /* Step connector */
+        .step-line { position:relative; }
+        .step-line::after {
+            content:''; position:absolute; top:50%; right:-32px; width:32px; height:2px;
+            background:linear-gradient(90deg, #00D68F, transparent);
+        }
+
+        /* Badge shimmer */
+        .badge-shimmer {
+            background: linear-gradient(90deg, #00D68F, #4DFFBC, #00D68F);
+            background-size: 200% auto;
+            animation: shimmer 3s linear infinite;
+        }
+
+        /* Mobile nav */
+        .mobile-menu { transform:translateX(100%); transition:transform .3s ease; }
+        .mobile-menu.open { transform:translateX(0); }
+
+        /* Stat counter */
+        .stat-value { font-variant-numeric: tabular-nums; }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- NAV -->
+    <nav id="nav" class="fixed top-0 w-full z-50 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <a href="#hero" class="flex items-center gap-2 group">
+                <div class="w-9 h-9 rounded-lg bg-mint flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <i data-lucide="route" class="w-5 h-5 text-navy-950"></i>
+                </div>
+                <span class="font-display font-bold text-lg text-white">CareerPath</span>
+            </a>
+            <div class="hidden md:flex items-center gap-8">
+                <a href="#vision" class="text-sm text-slate-400 hover:text-mint transition-colors">Vision</a>
+                <a href="#problem" class="text-sm text-slate-400 hover:text-mint transition-colors">Problem</a>
+                <a href="#how" class="text-sm text-slate-400 hover:text-mint transition-colors">How It Works</a>
+                <a href="#features" class="text-sm text-slate-400 hover:text-mint transition-colors">Features</a>
+                <a href="#roadmap" class="text-sm text-slate-400 hover:text-mint transition-colors">Roadmap</a>
+                <a href="#business" class="text-sm text-slate-400 hover:text-mint transition-colors">Business</a>
+            </div>
+            <div class="hidden md:block">
+                <a href="#cta" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-mint text-navy-950 text-sm font-semibold hover:bg-mint-light transition-colors">
+                    Get Started <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                </a>
+            </div>
+            <button id="menu-btn" class="md:hidden text-white">
+                <i data-lucide="menu" class="w-6 h-6"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Mobile Menu -->
+    <div id="mobile-menu" class="mobile-menu fixed inset-y-0 right-0 w-72 bg-navy-900/95 backdrop-blur-xl z-50 p-8 flex flex-col gap-6 border-l border-navy-700">
+        <button id="close-menu" class="self-end text-slate-400 hover:text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
+        <a href="#vision" class="text-lg text-slate-300 hover:text-mint transition-colors mobile-link">Vision</a>
+        <a href="#problem" class="text-lg text-slate-300 hover:text-mint transition-colors mobile-link">Problem</a>
+        <a href="#how" class="text-lg text-slate-300 hover:text-mint transition-colors mobile-link">How It Works</a>
+        <a href="#features" class="text-lg text-slate-300 hover:text-mint transition-colors mobile-link">Features</a>
+        <a href="#roadmap" class="text-lg text-slate-300 hover:text-mint transition-colors mobile-link">Roadmap</a>
+        <a href="#business" class="text-lg text-slate-300 hover:text-mint transition-colors mobile-link">Business</a>
+        <a href="#cta" class="mt-4 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-mint text-navy-950 font-semibold mobile-link">Get Started</a>
+    </div>
+
+    <!-- HERO -->
+    <section id="hero" class="relative min-h-screen flex items-center justify-center overflow-hidden noise">
+        <canvas id="hero-canvas"></canvas>
+        <!-- Gradient blobs -->
+        <div class="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-mint/5 rounded-full blur-[120px] animate-[float_8s_ease-in-out_infinite]"></div>
+        <div class="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-sky/5 rounded-full blur-[100px] animate-[float_10s_ease-in-out_infinite_1s]"></div>
+
+        <div class="relative z-10 text-center max-w-5xl mx-auto px-6 pt-20">
+            <div class="fade-up inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-mint/20 bg-mint/5 mb-8">
+                <span class="w-2 h-2 rounded-full bg-mint animate-pulse"></span>
+                <span class="text-xs font-medium text-mint tracking-wider uppercase">Now in Development</span>
+            </div>
+
+            <h1 class="fade-up font-display font-bold text-5xl sm:text-6xl md:text-7xl lg:text-8xl leading-[1.05] tracking-tight text-white mb-6">
+                Like Google Maps<br>
+                <span class="gradient-text">— for your career</span>
+            </h1>
+
+            <p class="fade-up max-w-2xl mx-auto text-lg md:text-xl text-slate-400 leading-relaxed mb-10">
+                An app that shows <strong class="text-white">you</strong> exactly what to learn to get the job you want. No confusion. No wasted time. Just a clear path from where you are to where you want to be.
+            </p>
+
+            <div class="fade-up flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+                <a href="#how" class="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-mint text-navy-950 font-semibold text-base hover:bg-mint-light transition-all hover:scale-105 shadow-lg shadow-mint/20">
+                    See How It Works <i data-lucide="arrow-down" class="w-5 h-5"></i>
+                </a>
+                <a href="#problem" class="inline-flex items-center gap-2 px-8 py-4 rounded-full border border-navy-600 text-slate-300 font-medium text-base hover:border-mint/40 hover:text-white transition-all">
+                    The Problem We Solve
+                </a>
+            </div>
+
+            <!-- Hero image -->
+            <div class="fade-up relative max-w-4xl mx-auto rounded-2xl overflow-hidden border border-navy-700 shadow-2xl shadow-black/40">
+                <img src="https://picsum.photos/seed/careerpath-hero/1200/600" alt="CareerPath App Preview" class="w-full object-cover opacity-80">
+                <div class="absolute inset-0 bg-gradient-to-t from-navy-950 via-transparent to-transparent"></div>
+                <div class="absolute bottom-6 left-6 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-mint flex items-center justify-center">
+                        <i data-lucide="route" class="w-6 h-6 text-navy-950"></i>
+                    </div>
+                    <div>
+                        <p class="font-display font-semibold text-white text-sm">CareerPath</p>
+                        <p class="text-xs text-slate-400">Your career, mapped</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scroll indicator -->
+        <div class="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 opacity-50">
+            <span class="text-xs text-slate-500 uppercase tracking-widest">Scroll</span>
+            <div class="w-5 h-8 rounded-full border border-slate-600 flex items-start justify-center p-1">
+                <div class="w-1 h-2 rounded-full bg-mint animate-bounce"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- VISION / MISSION / GOALS -->
+    <section id="vision" class="relative py-32 grid-bg">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-20">
+                <p class="fade-up text-xs font-semibold uppercase tracking-[0.2em] text-mint mb-4">Our Purpose</p>
+                <h2 class="fade-up font-display font-bold text-4xl md:text-5xl text-white tracking-tight">Built on clarity, driven by direction</h2>
+            </div>
+
+            <!-- Vision & Mission cards -->
+            <div class="grid md:grid-cols-2 gap-8 mb-16">
+                <div class="fade-up card-glow relative p-8 md:p-10 rounded-2xl border border-navy-700 bg-navy-900/60 backdrop-blur-sm overflow-hidden">
+                    <div class="absolute top-0 right-0 w-40 h-40 bg-mint/5 rounded-full blur-[60px]"></div>
+                    <div class="relative z-10">
+                        <div class="w-12 h-12 rounded-xl bg-mint/10 flex items-center justify-center mb-6">
+                            <i data-lucide="eye" class="w-6 h-6 text-mint"></i>
+                        </div>
+                        <h3 class="font-display font-bold text-2xl text-white mb-4">Vision</h3>
+                        <p class="text-slate-400 leading-relaxed text-lg">
+                            A world where <strong class="text-white">no student ever wastes time wondering what to learn next</strong> — where every career journey begins with a map, not a guess.
+                        </p>
+                    </div>
+                </div>
+                <div class="fade-up card-glow relative p-8 md:p-10 rounded-2xl border border-navy-700 bg-navy-900/60 backdrop-blur-sm overflow-hidden">
+                    <div class="absolute top-0 right-0 w-40 h-40 bg-flame/5 rounded-full blur-[60px]"></div>
+                    <div class="relative z-10">
+                        <div class="w-12 h-12 rounded-xl bg-flame/10 flex items-center justify-center mb-6">
+                            <i data-lucide="compass" class="w-6 h-6 text-flame"></i>
+                        </div>
+                        <h3 class="font-display font-bold text-2xl text-white mb-4">Mission</h3>
+                        <p class="text-slate-400 leading-relaxed text-lg">
+                            To eliminate career confusion by giving every learner a <strong class="text-white">clear, personalized, step-by-step roadmap</strong> — making the journey from student to professional feel directed, measurable, and rewarding.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Goals -->
+            <div class="fade-up relative p-8 md:p-10 rounded-2xl border border-navy-700 bg-navy-900/60 backdrop-blur-sm">
+                <div class="flex items-center gap-3 mb-8">
+                    <div class="w-10 h-10 rounded-xl bg-sky/10 flex items-center justify-center">
+                        <i data-lucide="target" class="w-5 h-5 text-sky"></i>
+                    </div>
+                    <h3 class="font-display font-bold text-2xl text-white">Goals</h3>
+                </div>
+                <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="p-5 rounded-xl bg-navy-800/50 border border-navy-700">
+                        <p class="stat-value font-display font-bold text-3xl text-mint mb-1">3</p>
+                        <p class="text-sm text-slate-400">Career roadmaps at MVP launch</p>
+                    </div>
+                    <div class="p-5 rounded-xl bg-navy-800/50 border border-navy-700">
+                        <p class="stat-value font-display font-bold text-3xl text-flame mb-1">10K</p>
+                        <p class="text-sm text-slate-400">Active learners in first 3 months</p>
+                    </div>
+                    <div class="p-5 rounded-xl bg-navy-800/50 border border-navy-700">
+                        <p class="stat-value font-display font-bold text-3xl text-sky mb-1">70%</p>
+                        <p class="text-sm text-slate-400">Roadmap completion rate target</p>
+                    </div>
+                    <div class="p-5 rounded-xl bg-navy-800/50 border border-navy-700">
+                        <p class="stat-value font-display font-bold text-3xl text-violet mb-1">50+</p>
+                        <p class="text-sm text-slate-400">Career paths within first year</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- THE PROBLEM -->
+    <section id="problem" class="relative py-32">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-20">
+                <p class="fade-up text-xs font-semibold uppercase tracking-[0.2em] text-flame mb-4">The Problem</p>
+                <h2 class="fade-up font-display font-bold text-4xl md:text-5xl text-white tracking-tight mb-4">
+                    Job seekers aren't short on effort
+                </h2>
+                <p class="fade-up text-xl text-slate-400 max-w-2xl mx7auto">They're drowning in confusion</p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8 mb-12">
+                <div class="fade-up card-glow p-8 rounded-2xl border border-navy-700 bg-navy-900/60">
+                    <div class="flex items-start gap-5">
+                        <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-flame/10 flex items-center justify-center">
+                            <span class="font-display font-bold text-flame text-lg">01</span>
+                        </div>
+                        <div>
+                            <h3 class="font-display font-semibold text-xl text-white mb-3">Endless, conflicting advice</h3>
+                            <p class="text-s*late-400 leading-relaxed">Searching online turns up thousands of YouTube videos and articles, each claiming a different "right way" to learn — leaving students more confused than when they started.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="fade-up card-glow p-8 rounded-2xl border border-navy-700 bg-navy-900/60">
+                    <div class="flex items-start gap-5">
+                        <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-flame/10 flex items-center justify-center">
+                            <span class="font-display font-bold text-flame text-lg">02</span>
+                        </div>
+                        <div>
+                            <h3 class="font-display font-semibold text-xl text-white mb-3">No clear learning order</h3>
+                            <p class="text-slate-400 leading-relaxed">There's rarely any indication of what to learn first, second, or third — learners waste time on topics before they're ready, or skip foundational basics entirely.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="fade-up card-glow p-8 rounded-2xl border border-navy-700 bg-navy-900/60">
+                    <div class="flex items-start gap-5">
+                        <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-flame/10 flex items-center justify-center">
+                            <span class="font-display font-bold text-flame text-lg">03</span>
+                        </div>
+                        <div>
+                            <h3 class="font-display font-semibold text-xl text-white mb-3">No sense of timeline</h3>
+                            <p class="text-slate-400 leading-relaxed">Without any idea of how long a skill actually takes, students can't plan their effort, set realistic goals, or know if they're behind or on track.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="fade-up card-glow p-8 rounded-2xl border border-navy-700 bg-navy-900/60">
+                    <div class="flex items-start gap-5">
+                        <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-flame/10 flex items-center justify-center">
+                            <span class="font-display font-bold text-flame text-lg">04</span>
+                        </div>
+                        <div>
+                            <h3 class="font-display font-semibold text-xl text-white mb-3">No way to measure progress</h3>
+                            <p class="text-slate-400 leading-relaxed">There's no clear signal that you're actually improving, which quietly drains motivation and causes many learners to give up halfway through.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="fade-up text-center p-8 rounded-2xl bg-flame/5 border border-flame/20">
+                <p class="text-lg text-slate-300 leading-relaxed">
+                    <i data-lucide="alert-triangle" class="w-5 h-5 inline text-flame mr-2 -mt-1"></i>
+                    The result: this scattered approach quietly wastes <strong class="text-white">months — sometimes years</strong> — of a student's most valuable time.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- THE IDEA -->
+    <section id="idea" class="relative py-32 overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-b from-navy-950 via-navy-900/30 to-navy-950"></div>
+        <div class="relative z-10 max-w-5xl mx-auto px-6 text-center">
+            <p class="fade-up text-xs font-semibold uppercase tracking-[0.2em] text-mint mb-4">The Idea</p>
+            <h2 class="fade-up font-display font-bold text-4xl md:text-5xl lg:text-6xl text-white tracking-tight mb-8 leading-tight">
+                "Think of it like Google Maps —<br>
+                <span class="text-slate-400">but instead of roads to a city,</span><br>
+                <span class="gradient-text">it shows you steps to a job."</span>
+            </h2>
+
+            <div class="fade-up flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 mt-16">
+                <div class="flex items-center gap-3 px-6 py-4 rounded-xl bg-navy-800/60 border border-navy-700">
+                    <div class="w-10 h-10 rounded-lg bg-mint/10 flex items-center justify-center">
+                        <i data-lucide="search" class="w-5 h-5 text-mint"></i>
+                    </div>
+                    <span class="font-display font-medium text-white">Type your dream job</span>
+                </div>
+                <i data-lucide="chevron-right" class="w-5 h-5 text-navy-600 hidden sm:block"></i>
+                <div class="flex items-center gap-3 px-6 py-4 rounded-xl bg-navy-800/60 border border-navy-700">
+                    <div class="w-10 h-10 rounded-lg bg-sky/10 flex items-center justify-center">
+                        <i data-lucide="map" class="w-5 h-5 text-sky"></i>
+                    </div>
+                    <span class="font-display font-medium text-white">See your roadmap</span>
+                </div>
+                <i data-lucide="chevron-right" class="w-5 h-5 text-navy-600 hidden sm:block"></i>
+                <div class="flex items-center gap-3 px-6 py-4 rounded-xl bg-navy-800/60 border border-navy-700">
+                    <div class="w-10 h-10 rounded-lg bg-flame/10 flex items-center justify-center">
+                        <i data-lucide="book-open" class="w-5 h-5 text-flame"></i>
+                    </div>
+                    <span class="font-display font-medium text-white">Learn step by step</span>
+                </div>
+                <i data-lucide="chevron-right" class="w-5 h-5 text-navy-600 hidden sm:block"></i>
+                <div class="flex items-center gap-3 px-6 py-4 rounded-xl bg-navy-800/60 border border-navy-700">
+                    <div class="w-10 h-10 rounded-lg bg-violet/10 flex items-center justify-center">
+                        <i data-lucide="trophy" class="w-5 h-5 text-violet"></i>
+                    </div>
+                    <span class="font-display font-medium text-white">Arrive job-ready</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- HOW IT WORKS -->
+    <section id="how" class="relative py-32 grid-bg">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-20">
+                <p class="fade-up text-xs font-semibold uppercase tracking-[0.2em] text-sky mb-4">How It Works</p>
+                <h2 class="fade-up font-display font-bold text-4xl md:text-5xl text-white tracking-tight">Five steps from confused to job-ready</h2>
+            </div>
+
+            <div class="relative max-w-4xl mx-auto">
+                <!-- Vertical line -->
+                <div class="absolute left-8 md:left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-mint via-sky to-violet md:-translate-x-px"></div>
+
+                <!-- Step 1 -->
+                <div class="fade-up relative flex md:items-center mb-16 md:mb-20">
+                    <div class="absolute left-8 md:left-1/2 w-4 h-4 rounded-full bg-mint border-4 border-navy-950 -translate-x-1/2 z-10 animate-[glow-pulse_3s_ease_infinite]"></div>
+                    <div class="ml-20 md:ml-0 md:w-1/2 md:pr-16 md:text-right">
+                        <span class="font-display font-bold text-5xl text-navy-700">01</span>
+                        <h3 class="font-display font-semibold text-2xl text-white mt-2 mb-3">Pick Your Dream Job</h3>
+                        <p class="text-slate-400 leading-relaxed">Tell the app the role you're aiming for — "Web Developer," "Data Analyst," or any career you can imagine.</p>
+                    </div>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="fade-up relative flex md:items-center md:justify-end mb-16 md:mb-20">
+                    <div class="absolute left-8 md:left-1/2 w-4 h-4 rounded-full bg-mint border-4 border-navy-950 -translate-x-1/2 z-10"></div>
+                    <div class="ml-20 md:ml-0 md:w-1/2 md:pl-16">
+                        <span class="font-display font-bold text-5xl text-navy-700">02</span>
+                        <h3 class="font-display font-semibold text-2xl text-white mt-2 mb-3">Get Your Roadmap</h3>
+                        <p class="text-slate-400 leading-relaxed">The app instantly builds a visual, game-like chart laying out every skill you need, arranged in the right order.</p>
+                    </div>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="fade-up relative flex md:items-center mb-16 md:mb-20">
+                    <div class="absolute left-8 md:left-1/2 w-4 h-4 rounded-full bg-sky border-4 border-navy-950 -translate-x-1/2 z-10"></div>
+                    <div class="ml-20 md:ml-0 md:w-1/2 md:pr-16 md:text-right">
+                        <span class="font-display font-bold text-5xl text-navy-700">03</span>
+                        <h3 class="font-display font-semibold text-2xl text-white mt-2 mb-3">Learn One Step at a Time</h3>
+                        <p class="text-slate-400 leading-relaxed">Each step arrives with the single best free video or article attached, so you never waste time searching.</p>
+                    </div>
+                </div>
+
+                <!-- Step 4 -->
+                <div class="fade-up relative flex md:items-center md:justify-end mb-16 md:mb-20">
+                    <div class="absolute left-8 md:left-1/2 w-4 h-4 rounded-full bg-sky border-4 border-navy-950 -translate-x-1/2 z-10"></div>
+                    <div class="ml-20 md:ml-0 md:w-1/2 md:pl-16">
+                        <span class="font-display font-bold text-5xl text-navy-700">04</span>
+                        <h3 class="font-display font-semibold text-2xl text-white mt-2 mb-3">Track Your Progress</h3>
+                        <p class="text-slate-400 leading-relaxed">Like leveling up in a game, you unlock the next step only after finishing the one before it.</p>
+                    </div>
+                </div>
+
+                <!-- Step 5 -->
+                <div class="fade-up relative flex md:items-center">
+                    <div class="absolute left-8 md:left-1/2 w-4 h-4 rounded-full bg-violet border-4 border-navy-950 -translate-x-1/2 z-10"></div>
+                    <div class="ml-20 md:ml-0 md:w-1/2 md:pr-16 md:text-right">
+                        <span class="font-display font-bold text-5xl text-navy-700">05</span>
+                        <h3 class="font-display font-semibold text-2xl text-white mt-2 mb-3">Become Job-Ready</h3>
+                        <p class="text-slate-400 leading-relaxed">Once your roadmap is complete, the app shows real jobs and internships that match your new skills.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section id="features" class="relative py-32">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-20">
+                <p class="fade-up text-xs font-semibold uppercase tracking-[0.2em] text-violet mb-4">Features</p>
+                <h2 class="fade-up font-display font-bold text-4xl md:text-5xl text-white tracking-tight">What makes it fun & interesting</h2>
+                <p class="fade-up text-slate-400 mt-4 text-lg">Thirteen features, organized into four pillars</p>
+            </div>
+
+            <!-- Pillar tabs -->
+            <div class="fade-up flex flex-wrap justify-center gap-3 mb-12" id="pillar-tabs">
+                <button class="pillar-tab active px-5 py-2.5 rounded-full text-sm font-medium transition-all" data-pillar="game">
+                    <i data-lucide="gamepad-2" class="w-4 h-4 inline mr-1.5 -mt-0.5"></i>Game-Like Feel
+                </button>
+                <button class="pillar-tab px-5 py-2.5 rounded-full text-sm font-medium transition-all" data-pillar="smart">
+                    <i data-lucide="sparkles" class="w-4 h-4 inline mr-1.5 -mt-0.5"></i>Smart Help
+                </button>
+                <button class="pillar-tab px-5 py-2.5 rounded-full text-sm font-medium transition-all" data-pillar="real">
+                    <i data-lucide="globe" class="w-4 h-4 inline mr-1.5 -mt-0.5"></i>Real-World Connect
+                </button>
+                <button class="pillar-tab px-5 py-2.5 rounded-full text-sm font-medium transition-all" data-pillar="extra">
+                    <i data-lucide="wrench" class="w-4 h-4 inline mr-1.5 -mt-0.5"></i>Extra Help
+                </button>
+            </div>
+
+            <!-- Pillar content -->
+            <div id="pillar-content">
+                <!-- Game-Like Feel -->
+                <div class="pillar-panel active" data-pillar="game">
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="card-glow p-8 rounded-2xl border border-navy-700 bg-navy-900/60">
+                            <div class="w-10 h-10 rounded-lg bg-violet/10 flex items-center justify-center mb-5">
+                                <i data-lucide="map-pin" class="w-5 h-5 text-violet"></i>
+                            </div>
+                            <h4 class="font-display font-semibold text-lg text-white mb-2">Visual progress map</h4>
+                            <p class="text-slate-400 text-sm leading-relaxed">Your learning path is displayed as a game map, and every completed skill unlocks the next one — turning studying into a journey instead of an overwhelming list.</p>
+                        </div>
+                        <div class="card-glow p-8 rounded-2xl border border-navy-700 bg-navy-900/60">
+                            <div class="w-10 h-10 rounded-lg bg-flame/10 flex items-center justify-center mb-5">
+                                <i data-lucide="award" class="w-5 h-5 text-flame"></i>
+                            </div>
+                            <h4 class="font-display font-semibold text-lg text-white mb-2">Points & badges</h4>
+                            <p class="text-slate-400 text-sm leading-relaxed">Earn points and badges as you progress, much like Duolingo — turning "getting better" into something visible and rewarding.</p>
+                        </div>
+                        <div class="card-glow p-8 rounded-2xl border border-navy-700 bg-navy-900/60">
+                            <div class="w-10 h-10 rounded-lg bg-mint/10 flex items-center justify-center mb-5">
+                                <i data-lucide="calendar-check" class="w-5 h-5 text-mint"></i>
+                            </div>
+                            <h4 class="font-display font-semibold text-lg text-white mb-2">Daily micro-tasks</h4>
+                            <p class="text-slate-400 text-sm leading-relaxed">Small, bite-sized daily tasks build a habit, giving users a real reason to open the app every single day.</p>
+                        </div>
+                        <div class="card-glow p-8 rounded-2xl border border-navy-700 bg-navy-900/60">
+                            <div class="w-10 h-10 rounded-lg bg-sky/10 flex items-center justify-center mb-5">
+                                <i data-lucide="users" class="w-5 h-5 text-sky"></i>
+                            </div>
+                            <h4 class="font-display font-semibold text-lg text-white mb-2">Friendly competition</h4>
+                            <p class="text-slate-400 text-sm leading-relaxed">Compare progress with friends, adding a social, competitive spark that keeps people going instead of quitting halfway.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Smart Help -->
+                <div class="pillar-panel" data-pillar="smart" style="display:none">
+                    <div class="grid md:grid-cols-3 gap-6">
+                        <div class="card-glow p-8 rounded-2xl border border-navy-700 bg-navy-900/60">
+                            <div class="w-10 h-10 rounded-lg bg-sky/10 flex items-center justify-center mb-5">
+                                <i data-lucide="zap" class="w-5 h-5 text-sky"></i>
+                            </div>
+                            <h4 class="font-display font-semibold text-lg text-white mb-2">Instant roadmap for any job</h4>
+                            <p class="text-slate-400 text-sm leading-relaxed">Type literally any job title and the app builds a complete, structured roadmap right away — no manual research required.</p>
+                        </div>
+                        <div class="card-glow p-8 rounded-2xl border border-navy-700 bg-navy-900/60">
+                            <div class="w-10 h-10 rounded-lg bg-mint/10 flex items-center justify-center mb-5">
+                                <i data-lucide="file-text" class="w-5 h-5 text-mint"></i>
+                            </div>
+                            <h4 class="font-display font-semibold text-lg text-white mb-2">Resume-based progress check</h4>
+                            <p class="text-slate-400 text-sm leading-relaxed">Upload your resume and the app estimates how much of the roadmap you've already completed — never start from zero.</p>
+                        </div>
+                        <div class="card-glow p-8 rounded-2xl border border-navy-700 bg-navy-900/60">
+                            <div class="w-10 h-10 rounded-lg bg-flame/10 flex items-center justify-center mb-5">
+                                <i data-lucide="shield-alert" class="w-5 h-5 text-flame"></i>
+                            </div>
+                            <h4 class="font-display font-semibold text-lg text-white mb-2">Outdated-skill warnings</h4>
+                            <p class="text-slate-400 text-sm leading-relaxed">The app flags when you're learning something becoming outdated, keeping every hour you invest genuinely relevant.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Real-World Connect -->
+                <div class="pillar-panel" data-pillar="real" style="display:none">
+                    <div class="grid md:grid-cols-3 gap-6">
+                        <div class="card-glow p-8 rounded-2xl border border-navy-700 bg-navy-900/60">
+                            <div class="w-10 h-10 rounded-lg bg-mint/10 flex items-center justify-center mb-5">
+                                <i data-lucide="briefcase" class="w-5 h-5 text-mint"></i>
+                            </div>
+                            <h4 class="font-display font-semibold text-lg text-white mb-2">Real jobs & internships</h4>
+                            <p class="text-slate-400 text-sm leading-relaxed">Once a roadmap is finished, the app surfaces actual job and internship listings matching your exact skills.</p>
+                        </div>
+                        <div class="card-glow p-8 rounded-2xl border border-navy-700 bg-navy-900/60">
+                            <div class="w-10 h-10 rounded-lg bg-violet/10 flex items-center justify-center mb-5">
+                                <i data-lucide="message-circle" class="w-5 h-5 text-violet"></i>
+                            </div>
+                            <h4 class="font-display font-semibold text-lg text-white mb-2">Mentorship from seniors</h4>
+                            <p class="text-slate-400 text-sm leading-relaxed">Connect directly with people who've completed the same roadmap, getting first-hand advice and encouragement.</p>
+                        </div>
+                        <div class="card-glow p-8 rounded-2xl border border-navy-700 bg-navy-900/60">
+                            <div class="w-10 h-10 rounded-lg bg-flame/10 flex items-center justify-center mb-5">
+                                <i data-lucide="trending-up" class="w-5 h-5 text-flame"></i>
+                            </div>
+                            <h4 class="font-display font-semibold text-lg text-white mb-2">Salary visibility</h4>
+                            <p class="text-slate-400 text-sm leading-relaxed">As each step is completed, see the expected salary tied to that growing skill set — keeping the end goal tangible.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Extra Help -->
+                <div class="pillar-panel" data-pillar="extra" style="display:none">
+                    <div class="grid md:grid-cols-3 gap-6">
+                        <div class="card-glow p-8 rounded-2xl border border-navy-700 bg-navy-900/60">
+                            <div class="w-10 h-10 rounded-lg bg-sky/10 flex items-center justify-center mb-5">
+                                <i data-lucide="file-plus" class="w-5 h-5 text-sky"></i>
+                            </div>
+                            <h4 class="font-display font-semibold text-lg text-white mb-2">Auto-built resume & portfolio</h4>
+                            <p class="text-slate-400 text-sm leading-relaxed">As steps are completed, the app automatically compiles a resume and portfolio — saving you from building one from scratch.</p>
+                        </div>
+                        <div class="card-glow p-8 rounded-2xl border border-navy-700 bg-navy-900/60">
+                            <div class="w-10 h-10 rounded-lg bg-violet/10 flex items-center justify-center mb-5">
+                                <i data-lucide="mic" class="w-5 h-5 text-violet"></i>
+                            </div>
+                            <h4 class="font-display font-semibold text-lg text-white mb-2">Interview practice</h4>
+                            <p class="text-slate-400 text-sm leading-relaxed">Every completed roadmap ends with practice interview questions tailored specifically to that role.</p>
+                        </div>
+                        <div class="card-glow p-8 rounded-2xl border border-navy-700 bg-navy-900/60">
+                            <div class="w-10 h-10 rounded-lg bg-mint/10 flex items-center justify-center mb-5">
+                                <i data-lucide="wifi-off" class="w-5 h-5 text-mint"></i>
+                            </div>
+                            <h4 class="font-display font-semibold text-lg text-white mb-2">Works on low internet</h4>
+                            <p class="text-slate-400 text-sm leading-relaxed">Designed to run smoothly even on low internet connections, keeping it accessible to students in smaller towns.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feature image -->
+            <div class="fade-up mt-16 relative rounded-2xl overflow-hidden border border-navy-700">
+                <img src="https://picsum.photos/seed/gamified-learning/1200/400" alt="Gamified Learning Experience" class="w-full object-cover opacity-70">
+                <div class="absolute inset-0 bg-gradient-to-r from-navy-950 via-navy-950/60 to-transparent"></div>
+                <div class="absolute inset-0 flex items-center p-8 md:p-12">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-mint mb-2">Gamified Experience</p>
+                        <h3 class="font-display font-bold text-2xl md:text-3xl text-white mb-3">Learning feels like playing,<br>not studying</h3>
+                        <p class="text-slate-400 max-w-md text-sm leading-relaxed">Progress maps, points, badges, daily tasks, and friendly competition keep learners coming back day after day.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- COMPANY ROADMAP -->
+    <section id="roadmap" class="relative py-32 overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-b from-navy-950 via-navy-900/20 to-navy-950"></div>
+        <div class="relative z-10 max-w-7xl mx-auto px-6">
+            <div class="text-center mb-20">
+                <p class="fade-up text-xs font-semibold uppercase tracking-[0.2em] text-mint mb-4">Company Roadmap</p>
+                <h2 class="fade-up font-display font-bold text-4xl md:text-5xl text-white tracking-tight">Where we're headed</h2>
+                <p class="fade-up text-slate-400 mt-4 text-lg">Start small, move fast, scale smart</p>
+            </div>
+
+            <!-- Horizontal scrolling roadmap -->
+            <div class="fade-up relative">
+                <div class="overflow-x-auto pb-8 -mx-6 px-6 scrollbar-thin" id="roadmap-scroll">
+                    <div class="relative flex items-start min-w-[900px] md:min-w-0 md:grid md:grid-cols-5 gap-0">
+                        <!-- Line -->
+                        <div class="absolute top-8 left-0 right-0 h-1 bg-navy-700 rounded-full hidden md:block"></div>
+                        <div class="absolute top-8 left-0 right-0 h-1 bg-gradient-to-r from-mint via-sky to-violet rounded-full hidden md:block" style="width:75%"></div>
+
+                        <!-- Phase 1 -->
+                        <div class="relative flex flex-col items-center text-center px-4 pt-4">
+                            <div class="w-16 h-16 rounded-2xl bg-mint flex items-center justify-center z-10 mb-6 shadow-lg shadow-mint/20">
+                                <i data-lucide="rocket" class="w-7 h-7 text-navy-950"></i>
+                            </div>
+                            <span class="badge-shimmer text-xs font-bold uppercase tracking-wider text-navy-950 px-3 py-1 rounded-full mb-3">Q1 2025</span>
+                            <h4 class="font-display font-semibold text-white mb-2">MVP Launch</h4>
+                            <p class="text-xs text-slate-400 leading-relaxed">3 career roadmaps (Web Dev, Data Analyst, ML Engineer). Core path & progress tracking.</p>
+                        </div>
+
+                        <!-- Phase 2 -->
+                        <div class="relative flex flex-col items-center text-center px-4 pt-4">
+                            <div class="w-16 h-16 rounded-2xl bg-sky flex items-center justify-center z-10 mb-6 shadow-lg shadow-sky/20">
+                                <i data-lucide="gamepad-2" class="w-7 h-7 text-navy-950"></i>
+                            </div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-sky px-3 py-1 rounded-full border border-sky/30 mb-3">Q2 2025</span>
+                            <h4 class="font-display font-semibold text-white mb-2">Gamification</h4>
+                            <p class="text-xs text-slate-400 leading-relaxed">Points, badges, daily tasks, friend competitions. Expand to 15+ roadmaps.</p>
+                        </div>
+
+                        <!-- Phase 3 -->
+                        <div class="relative flex flex-col items-center text-center px-4 pt-4">
+                            <div class="w-16 h-16 rounded-2xl bg-violet flex items-center justify-center z-10 mb-6 shadow-lg shadow-violet/20">
+                                <i data-lucide="credit-card" class="w-7 h-7 text-navy-950"></i>
+                            </div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-violet px-3 py-1 rounded-full border border-violet/30 mb-3">Q3 2025</span>
+                            <h4 class="font-display font-semibold text-white mb-2">Premium & Partners</h4>
+                            <p class="text-xs text-slate-400 leading-relaxed">Premium tier launch. Ed-tech course partnerships. Resume builder & AI chat helper.</p>
+                        </div>
+
+                        <!-- Phase 4 -->
+                        <div class="relative flex flex-col items-center text-center px-4 pt-4">
+                            <div class="w-16 h-16 rounded-2xl bg-flame flex items-center justify-center z-10 mb-6 shadow-lg shadow-flame/20">
+                                <i data-lucide="building-2" class="w-7 h-7 text-navy-950"></i>
+                            </div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-flame px-3 py-1 rounded-full border border-flame/30 mb-3">Q4 2025</span>
+                            <h4 class="font-display font-semibold text-white mb-2">Hire Platform</h4>
+                            <p class="text-xs text-slate-400 leading-relaxed">Companies pay to recruit completed learners. Mentorship network. Interview prep.</p>
+                        </div>
+
+                        <!-- Phase 5 -->
+                        <div class="relative flex flex-col items-center text-center px-4 pt-4">
+                            <div class="w-16 h-16 rounded-2xl bg-white/10 border-2 border-dashed border-mint/40 flex items-center justify-center z-10 mb-6">
+                                <i data-lucide="globe" class="w-7 h-7 text-mint"></i>
+                            </div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-mint/60 px-3 py-1 rounded-full border border-mint/20 mb-3">2026</span>
+                            <h4 class="font-display font-semibold text-white/70 mb-2">Scale Globally</h4>
+                            <p class="text-xs text-slate-500 leading-relaxed">100K+ users. 50+ career paths. Multi-language. International job markets.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- BUSINESS MODEL -->
+    <section id="business" class="relative py-32 grid-bg">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-20">
+                <p class="fade-up text-xs font-semibold uppercase tracking-[0.2em] text-flame mb-4">Business Model</p>
+                <h2 class="fade-up font-display font-bold text-4xl md:text-5xl text-white tracking-tight">Simple app, smart revenue</h2>
+                <p class="fade-up text-slate-400 mt-4">The core roadmap product stays free for every student*</p>
+            </div>
+
+            <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="fade-up card-glow relative p-8 rounded-2xl border border-navy-700 bg-navy-900/60 text-center">
+                    <div class="w-14 h-14 rounded-2xl bg-mint/10 flex items-center justify-center mx-auto mb-6">
+                        <i data-lucide="heart" class="w-7 h-7 text-mint"></i>
+                    </div>
+                    <h4 class="font-display font-semibold text-lg text-white mb-2">Free for everyone</h4>
+                    <p class="text-slate-400 text-sm leading-relaxed">Basic roadmaps and progress tracking stay free forever — accessible to every student.</p>
+                    <div class="mt-5 py-2 px-4 rounded-full bg-mint/10 text-mint text-xs font-semibold">₹0 / forever</div>
+                </div>
+
+                <div class="fade-up card-glow relative p-8 rounded-2xl border border-navy-700 bg-navy-900/60 text-center">
+                    <div class="w-14 h-14 rounded-2xl bg-violet/10 flex items-center justify-center mx-auto mb-6">
+                        <i data-lucide="crown" class="w-7 h-7 text-violet"></i>
+                    </div>
+                    <h4 class="font-display font-semibold text-lg text-white mb-2">Premium Tier</h4>
+                    <p class="text-slate-400 text-sm leading-relaxed">AI chat helper, resume reviews, and extra practice tests for learners who want an edge.</p>
+                    <div class="mt-5 py-2 px-4 rounded-full bg-violet/10 text-violet text-xs font-semibold">~₹20–30 / month</div>
+                </div>
+
+                <div class="fade-up card-glow relative p-8 rounded-2xl border border-navy-700 bg-navy-900/60 text-center">
+                    <div class="w-14 h-14 rounded-2xl bg-sky/10 flex items-center justify-center mx-auto mb-6">
+                        <i data-lucide="graduation-cap" class="w-7 h-7 text-sky"></i>
+                    </div>
+                    <h4 class="font-display font-semibold text-lg text-white mb-2">Course Partners</h4>
+                    <p class="text-slate-400 text-sm leading-relaxed">Ed-tech platforms like Udemy and Coursera pay to be featured as the recommended course for a step.</p>
+                    <div class="mt-5 py-2 px-4 rounded-full bg-sky/10 text-sky text-xs font-semibold">B2B Revenue</div>
+                </div>
+
+                <div class="fade-up card-glow relative p-8 rounded-2xl border border-navy-700 bg-navy-900/60 text-center">
+                    <div class="w-14 h-14 rounded-2xl bg-flame/10 flex items-center justify-center mx-auto mb-6">
+                        <i data-lucide="building" class="w-7 h-7 text-flame"></i>
+                    </div>
+                    <h4 class="font-display font-semibold text-lg text-white mb-2">Company Hiring</h4>
+                    <p class="text-slate-400 text-sm leading-relaxed">Companies looking for freshers pay for access to students who've completed a relevant roadmap.</p>
+                    <div class="mt-5 py-2 px-4 rounded-full bg-flame/10 text-flame text-xs font-semibold">Recruitment Fee</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- WHY START HERE -->
+    <section id="why" class="relative py-32">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="grid lg:grid-cols-2 gap-16 items-center">
+                <div>
+                    <p class="fade-up text-xs font-semibold uppercase tracking-[0.2em] text-mint mb-4">Why Start Here</p>
+                    <h2 class="fade-up font-display font-bold text-4xl md:text-5xl text-white tracking-tight mb-6">A strong, realistic first project</h2>
+                    <p class="fade-up text-slate-400 text-lg leading-relaxed mb-10">Not an overreach — a focused, demonstrable product that solves a problem everyone has felt.</p>
+
+                    <div class="space-y-6">
+                        <div class="fade-up flex items-start gap-4">
+                            <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-mint/10 flex items-center justify-center mt-0.5">
+                                <i data-lucide="check" class="w-4 h-4 text-mint"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-display font-semibold text-white mb-1">Start small & focused</h4>
+                                <p class="text-slate-400 text-sm leading-relaxed">Launch with just two or three job roadmaps, keeping the scope manageable and the quality high.</p>
+                            </div>
+                        </div>
+                        <div class="fade-up flex items-start gap-4">
+                            <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-mint/10 flex items-center justify-center mt-0.5">
+                                <i data-lucide="check" class="w-4 h-4 text-mint"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-display font-semibold text-white mb-1">No advanced AI required</h4>
+                                <p class="text-slate-400 text-sm leading-relaxed">The first version simply needs existing free content organized clearly and logically — no complex ML needed.</p>
+                            </div>
+                        </div>
+                        <div class="fade-up flex items-start gap-4">
+                            <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-mint/10 flex items-center justify-center mt-0.5">
+                                <i data-lucide="check" class="w-4 h-4 text-mint"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-display font-semibold text-white mb-1">A problem everyone understands</h4>
+                                <p class="text-slate-400 text-sm leading-relaxed">Nearly every student has felt this exact confusion — instantly relatable and easy to explain to judges or investors.</p>
+                            </div>
+                        </div>
+                        <div class="fade-up flex items-start gap-4">
+                            <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-mint/10 flex items-center justify-center mt-0.5">
+                                <i data-lucide="check" class="w-4 h-4 text-mint"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-display font-semibold text-white mb-1">Strong demo appeal</h4>
+                                <p class="text-slate-400 text-sm leading-relaxed">The visual, game-like roadmap design makes the app look polished and impressive in a live demo, even at earliest stages.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="fade-up relative rounded-2xl overflow-hidden border border-navy-700">
+                    <img src="https://picsum.photos/seed/startup-team/700/800" alt="Startup Team" class="w-full object-cover opacity-75">
+                    <div class="absolute inset-0 bg-gradient-to-t from-navy-950 via-navy-950/30 to-transparent"></div>
+                    <div class="absolute bottom-6 left-6 right-6">
+                        <div class="p-5 rounded-xl bg-navy-900/80 backdrop-blur-sm border border-navy-700">
+                            <p class="font-display font-semibold text-white text-sm mb-1">Built for hackathons.</p>
+                            <p class="text-slate-400 text-xs">Designed to impress in 5 minutes or less.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ONE SENTENCE / CTA -->
+    <section id="cta" class="relative py-32 overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-b from-navy-950 via-mint/5 to-navy-950"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-mint/5 rounded-full blur-[150px]"></div>
+
+        <div class="relative z-10 max-w-4xl mx-auto px-6 text-center">
+            <div class="fade-up mb-8">
+                <i data-lucide="quote" class="w-12 h-12 text-mint/20 mx-auto mb-6"></i>
+                <h2 class="font-display font-bold text-3xl md:text-4xl lg:text-5xl text-white leading-tight tracking-tight mb-6">
+                    CareerPath is Google Maps for careers — it shows you exactly where you are, what's next, and how to reach the job you want.
+                </h2>
+                <p class="text-xl text-slate-400">while making the journey feel like a game.</p>
+            </div>
+
+            <div class="fade-up mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
+                <a href="#" class="inline-flex items-center gap-2 px-10 py-4 rounded-full bg-mint text-navy-950 font-semibold text-lg hover:bg-mint-light transition-all hover:scale-105 shadow-lg shadow-mint/25">
+                    Start Your Path <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                </a>
+                <a href="#" class="inline-flex items-center gap-2 px-8 py-4 rounded-full border border-navy-600 text-slate-300 font-medium hover:border-mint/40 hover:text-white transition-all">
+                    <i data-lucide="github" class="w-5 h-5"></i> View on GitHub
+                </a>
+            </div>
+
+            <p class="fade-up mt-16 font-display font-bold text-2xl gradient-text">CareerPath — Learn with direction.</p>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="relative border-t border-navy-700 py-12">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-mint flex items-center justify-center">
+                        <i data-lucide="route" class="w-4 h-4 text-navy-950"></i>
+                    </div>
+                    <span class="font-display font-bold text-white">CareerPath</span>
+                </div>
+                <div class="flex items-center gap-6">
+                    <a href="#" class="text-sm text-slate-500 hover:text-mint transition-colors">Privacy</a>
+                    <a href="#" class="text-sm text-slate-500 hover:text-mint transition-colors">Terms</a>
+                    <a href="#" class="text-sm text-slate-500 hover:text-mint transition-colors">Contact</a>
+                </div>
+                <p class="text-sm text-slate-600">© 2025 CareerPath. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Initialize Lucide
+        lucide.createIcons();
+
+        // === NAV SCROLL EFFECT ===
+        const nav = document.getElementById('nav');
+        let lastScroll = 0;
+        window.addEventListener('scroll', () => {
+            const st = window.scrollY;
+            if (st > 50) {
+                nav.classList.add('bg-navy-950/80', 'backdrop-blur-xl', 'border-b', 'border-navy-700/50');
+            } else {
+                nav.classList.remove('bg-navy-950/80', 'backdrop-blur-xl', 'border-b', 'border-navy-700/50');
+            }
+            lastScroll = st;
+        });
+
+        // === MOBILE MENU ===
+        const menuBtn = document.getElementById('menu-btn');
+        const closeMenu = document.getElementById('close-menu');
+        const mobileMenu = document.getElementById('mobile-menu');
+        menuBtn.addEventListener('click', () => mobileMenu.classList.add('open'));
+        closeMenu.addEventListener('click', () => mobileMenu.classList.remove('open'));
+        document.querySelectorAll('.mobile-link').forEach(l => {
+            l.addEventListener('click', () => mobileMenu.classList.remove('open'));
+        });
+
+        // === SCROLL ANIMATIONS ===
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+        document.querySelectorAll('.fade-up, .fade-in').forEach(el => observer.observe(el));
+
+        // === PILLAR TABS ===
+        const tabs = document.querySelectorAll('.pillar-tab');
+        const panels = document.querySelectorAll('.pillar-panel');
+
+        function updateTabs() {
+            tabs.forEach(tab => {
+                if (tab.classList.contains('active')) {
+                    tab.style.background = 'rgba(0,214,143,0.15)';
+                    tab.style.color = '#00D68F';
+                    tab.style.border = '1px solid rgba(0,214,143,0.3)';
+                } else {
+                    tab.style.background = 'rgba(13,19,33,0.6)';
+                    tab.style.color = '#94A3B8';
+                    tab.style.border = '1px solid rgba(27,39,64,0.8)';
+                }
+            });
+        }
+        updateTabs();
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const pillar = tab.dataset.pillar;
+                panels.forEach(p => {
+                    if (p.dataset.pillar === pillar) {
+                        p.style.display = 'block';
+                        p.style.animation = 'fadeUp 0.4s ease forwards';
+                    } else {
+                        p.style.display = 'none';
+                    }
+                });
+                updateTabs();
+            });
+        });
+
+        // === HERO CANVAS ANIMATION ===
+        const canvas = document.getElementById('hero-canvas');
+        const ctx = canvas.getContext('2d');
+        let nodes = [];
+        let animId;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Create nodes
+        const NODE_COUNT = Math.min(80, Math.floor(window.innerWidth / 15));
+        for (let i = 0; i < NODE_COUNT; i++) {
+            nodes.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                vx: (Math.random() - 0.5) * 0.4,
+                vy: (Math.random() - 0.5) * 0.4,
+                r: Math.random() * 2 + 1,
+                color: ['#00D68F', '#4F8CFF', '#A78BFA', '#FF7A3D'][Math.floor(Math.random() * 4)],
+                alpha: Math.random() * 0.4 + 0.1,
+            });
+        }
+
+        function drawNodes() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw connections
+            for (let i = 0; i < nodes.length; i++) {
+                for (let j = i + 1; j < nodes.length; j++) {
+                    const dx = nodes[i].x - nodes[j].x;
+                    const dy = nodes[i].y - nodes[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 150) {
+                        const alpha = (1 - dist / 150) * 0.08;
+                        ctx.beginPath();
+                        ctx.strokeStyle = `rgba(0, 214, 143, ${alpha})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.moveTo(nodes[i].x, nodes[i].y);
+                        ctx.lineTo(nodes[j].x, nodes[j].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            // Draw nodes
+            nodes.forEach(n => {
+                n.x += n.vx;
+                n.y += n.vy;
+                if (n.x < 0 || n.x > canvas.width) n.vx *= -1;
+                if (n.y < 0 || n.y > canvas.height) n.vy *= -1;
+
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+                ctx.fillStyle = n.color;
+                ctx.globalAlpha = n.alpha;
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            });
+
+            animId = requestAnimationFrame(drawNodes);
+        }
+        drawNodes();
+
+        // Pause when not visible
+        const heroSection = document.getElementById('hero');
+        const canvasObserver = new IntersectionObserver(([entry]) => {
+            if (!entry.isIntersecting) {
+                cancelAnimationFrame(animId);
+            } else {
+                drawNodes();
+            }
+        }, { threshold: 0 });
+        canvasObserver.observe(heroSection);
+    </script>
+</body>
+</html>
